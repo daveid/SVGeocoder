@@ -36,9 +36,9 @@ typedef NSUInteger SVGeocoderRequestState;
 - (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error;
 
 @property (nonatomic, retain) NSString *requestString;
-@property (nonatomic, assign) NSMutableData *responseData;
-@property (nonatomic, assign) NSURLConnection *connection;
-@property (nonatomic, assign) NSMutableURLRequest *request;
+@property (nonatomic, retain) NSMutableData *responseData;
+@property (nonatomic, retain) NSURLConnection *connection;
+@property (nonatomic, retain) NSMutableURLRequest *request;
 @property (nonatomic, readwrite) SVGeocoderRequestState state;
 
 @property (nonatomic, retain) NSTimer *timeoutTimer; // see http://stackoverflow.com/questions/2736967
@@ -61,8 +61,8 @@ typedef NSUInteger SVGeocoderRequestState;
     
     self.timeoutTimer = nil;
     self.completionBlock = nil;
-
-	[super dealloc];
+    
+    [super dealloc];
 }
 
 #pragma mark - Convenience Initializers
@@ -127,10 +127,10 @@ typedef NSUInteger SVGeocoderRequestState;
     NSMutableDictionary *parameters = [NSMutableDictionary dictionaryWithObjectsAndKeys: 
                                        address, @"address", 
                                        [NSString stringWithFormat:@"%f,%f|%f,%f", 
-                                            region.center.latitude-(region.span.latitudeDelta/2.0),
-                                            region.center.longitude-(region.span.longitudeDelta/2.0),
-                                            region.center.latitude+(region.span.latitudeDelta/2.0),
-                                            region.center.longitude+(region.span.longitudeDelta/2.0)], @"bounds", nil];
+                                        region.center.latitude-(region.span.latitudeDelta/2.0),
+                                        region.center.longitude-(region.span.longitudeDelta/2.0),
+                                        region.center.latitude+(region.span.latitudeDelta/2.0),
+                                        region.center.longitude+(region.span.longitudeDelta/2.0)], @"bounds", nil];
     
     return [self initWithParameters:parameters completion:NULL];
 }
@@ -150,13 +150,13 @@ typedef NSUInteger SVGeocoderRequestState;
 - (SVGeocoder*)initWithParameters:(NSMutableDictionary*)parameters completion:(void (^)(NSArray *, NSError *))block {
     self = [super init];
     self.completionBlock = block;
-    self.request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:@"http://maps.googleapis.com/maps/api/geocode/json"]];
+    self.request = [[[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:@"http://maps.googleapis.com/maps/api/geocode/json"]] autorelease];
     [self.request setTimeoutInterval:kSVGeocoderTimeoutInterval];
-
+    
     [parameters setValue:@"true" forKey:@"sensor"];
     [parameters setValue:[[NSLocale currentLocale] objectForKey:NSLocaleLanguageCode] forKey:@"language"];
     [self addParametersToRequest:parameters];
-        
+    
     self.state = SVGeocoderRequestStateReady;
     
     return self;
@@ -168,11 +168,11 @@ typedef NSUInteger SVGeocoderRequestState;
     
     for(NSString *key in [parameters allKeys]) {
         NSObject *paramValue = [parameters valueForKey:key];
-		if ([paramValue isKindOfClass:[NSString class]]) {
-			[paramStringsArray addObject:[NSString stringWithFormat:@"%@=%@", key, [(NSString *)paramValue encodedURLParameterString]]];			
-		} else {
-			[paramStringsArray addObject:[NSString stringWithFormat:@"%@=%@", key, paramValue]];
-		}
+        if ([paramValue isKindOfClass:[NSString class]]) {
+            [paramStringsArray addObject:[NSString stringWithFormat:@"%@=%@", key, [(NSString *)paramValue encodedURLParameterString]]];			
+        } else {
+            [paramStringsArray addObject:[NSString stringWithFormat:@"%@=%@", key, paramValue]];
+        }
     }
     
     NSString *paramsString = [paramStringsArray componentsJoinedByString:@"&"];
@@ -203,15 +203,15 @@ typedef NSUInteger SVGeocoderRequestState;
         [self performSelectorOnMainThread:@selector(start) withObject:nil waitUntilDone:NO];
         return;
     }
-        
+    
     [self willChangeValueForKey:@"isExecuting"];
     self.state = SVGeocoderRequestStateExecuting;    
     [self didChangeValueForKey:@"isExecuting"];
     
-    self.responseData = [[NSMutableData alloc] init];
+    self.responseData = [NSMutableData data];
     self.timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:kSVGeocoderTimeoutInterval target:self selector:@selector(requestTimeout) userInfo:nil repeats:NO];
     
-    self.connection = [[NSURLConnection alloc] initWithRequest:self.request delegate:self startImmediately:YES];
+    self.connection = [[[NSURLConnection alloc] initWithRequest:self.request delegate:self startImmediately:YES] autorelease];
     NSLog(@"[%@] %@", self.request.HTTPMethod, self.request.URL.absoluteString);
 }
 
@@ -222,10 +222,10 @@ typedef NSUInteger SVGeocoderRequestState;
     connection = nil;
     
     [self willChangeValueForKey:@"isExecuting"];
-//    [self willChangeValueForKey:@"isFinished"]; // no idea why but this makes it crash
+    //    [self willChangeValueForKey:@"isFinished"]; // no idea why but this makes it crash
     self.state = SVGeocoderRequestStateFinished;    
     [self didChangeValueForKey:@"isExecuting"];
-//    [self didChangeValueForKey:@"isFinished"]; // no idea why but this makes it crash
+    //    [self didChangeValueForKey:@"isFinished"]; // no idea why but this makes it crash
     
     self.timeoutTimer = nil;
 }
@@ -251,7 +251,7 @@ typedef NSUInteger SVGeocoderRequestState;
 }
 
 - (void)startAsynchronous {
-	[self start];
+    [self start];
 }
 
 
@@ -265,13 +265,13 @@ typedef NSUInteger SVGeocoderRequestState;
 
 
 - (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
-	[self.responseData appendData:data];
+    [self.responseData appendData:data];
 }
 
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
-	_querying = NO;
-	id response = nil;
+    _querying = NO;
+    id response = nil;
     NSError *error = nil;
     
     if(self.responseData && self.responseData.length > 0) {
@@ -292,7 +292,7 @@ typedef NSUInteger SVGeocoderRequestState;
                 NSDictionary *userinfo = [NSDictionary dictionaryWithObjectsAndKeys:@"Currently rate limited. Too many queries in a short time. (Over Quota)", NSLocalizedDescriptionKey, nil];
                 error = [NSError errorWithDomain:@"SVGeocoderErrorDomain" code:SVGeocoderOverQueryLimitError userInfo:userinfo];
             }
-
+            
             else if ([status isEqualToString:@"REQUEST_DENIED"]) {
                 NSDictionary *userinfo = [NSDictionary dictionaryWithObjectsAndKeys:@"Request was denied. Did you remember to add the \"sensor\" parameter?", NSLocalizedDescriptionKey, nil];
                 error = [NSError errorWithDomain:@"SVGeocoderErrorDomain" code:SVGeocoderRequestDeniedError userInfo:userinfo];
@@ -307,7 +307,7 @@ typedef NSUInteger SVGeocoderRequestState;
                 NSMutableArray *placemarksArray = [NSMutableArray arrayWithCapacity:[resultsArray count]];
                 
                 for(NSDictionary *placemarkDict in resultsArray) {
-                
+                    
                     NSDictionary *addressDict = [placemarkDict valueForKey:@"address_components"];
                     NSDictionary *coordinateDict = [[placemarkDict valueForKey:@"geometry"] valueForKey:@"location"];
                     
@@ -383,7 +383,7 @@ typedef NSUInteger SVGeocoderRequestState;
 
 - (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {
     _querying = NO;
-	
+    
     if(self.completionBlock)
         self.completionBlock(nil, error);
     else
@@ -406,7 +406,7 @@ typedef NSUInteger SVGeocoderRequestState;
                                                                           NULL,
                                                                           CFSTR(":/=,!$&'()*+;[]@#?|"),
                                                                           kCFStringEncodingUTF8);
-	return [result autorelease];
+    return [result autorelease];
 }
 
 @end
